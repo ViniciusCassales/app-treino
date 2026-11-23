@@ -243,6 +243,18 @@ details.warm summary{cursor:pointer;font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom, 0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 pre.backup{max-height:200px;overflow:auto;font-size:11px;background:var(--surface-2);padding:10px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
+.link.how{font-size:13px;margin-top:6px;display:inline-flex;align-items:center;gap:5px}
+.link.how::before{content:"";width:0;height:0;border-left:7px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(8,14,22,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);color:var(--ink);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:16px}}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sheet-head h2{text-transform:none;letter-spacing:.01em;font-size:24px}
+.how-frame{aspect-ratio:16/9;background:#fff;border-radius:10px;overflow:hidden;max-width:100%;position:relative}
+.how-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.how-frame .stage{position:absolute;left:8px;bottom:8px;background:rgba(17,29,44,.78);color:#fff;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px}
+.how-none{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:14px}
+.credit{font-size:11.5px;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -263,6 +275,19 @@ pre.backup{max-height:200px;overflow:auto;font-size:11px;background:var(--surfac
 </nav>
 <div class="sessbar" id="sessbar" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sheet-bg" id="sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-head"><div><div class="eyebrow">Como fazer</div><h2 id="sheet-title"></h2></div><button class="icon-btn" data-act="how-close" aria-label="Fechar">✕</button></div>
+    <div id="how-has" class="stack">
+      <div class="how-frame"><img id="how-img" alt="Demonstração do exercício"><span class="stage" id="how-stage"></span></div>
+      <div class="seg"><button data-act="how-step" data-v="0">Início</button><button data-act="how-step" data-v="1">Fim</button><button data-act="how-play">Animar</button></div>
+    </div>
+    <p class="how-none" id="how-none" hidden>Sem foto para este exercício. Veja os vídeos abaixo.</p>
+    <p class="note" id="how-notes" hidden></p>
+    <a class="btn block" id="how-video" target="_blank" rel="noopener">Ver vídeos no YouTube</a>
+    <p class="credit">Fotos: Free Exercise DB (domínio público). Sua máquina pode ser um pouco diferente; amplitude e carga seguem a orientação do profissional.</p>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -890,7 +915,7 @@ function exCard(s, e, ei) {
     </div>`).join('');
   return `<article class="ex">
     <header><div style="min-width:0"><h3>${esc(e.name)}</h3>
-      <div class="presc">${info.reps ? `<span class="role">${info.role === 'P' ? 'Principal' : 'Complementar'}</span> · ${esc(info.sets)} × ${esc(info.reps)}${info.rir ? ' · ' + esc(info.rir) : ''}` : 'Exercício personalizado'}</div></div>
+      <div class="presc">${info.reps ? `<span class="role">${info.role === 'P' ? 'Principal' : 'Complementar'}</span> · ${esc(info.sets)} × ${esc(info.reps)}${info.rir ? ' · ' + esc(info.rir) : ''}` : 'Exercício personalizado'}</div><button class="link how" data-act="how" data-key="${esc(e.key)}" data-name="${esc(e.name)}">Ver como fazer</button></div>
       <button class="icon-btn ${armed ? 'armed' : ''}" data-act="ex-remove" data-ei="${ei}" aria-label="Remover exercício">${armed ? 'Remover?' : '✕'}</button></header>
     ${info.notes ? `<p class="note">${esc(info.notes)}</p>` : ''}
     ${last ? `<p class="last">Última vez (${fmtD(last.date)}): <b>${last.sets.map(x => fmtSet(x, rr.unit)).join(' · ')}</b>${hist.length > 1 ? ` <span>· ${hist.length} registros</span>` : ''}</p>` : ''}
@@ -1272,6 +1297,50 @@ document.addEventListener('change', e => {
     .finally(() => { e.target.value = ''; });
 });
 
+/* ---------- como fazer ---------- */
+const HOW_IMG = {"supino-reto-com-barra":"Barbell_Bench_Press_-_Medium_Grip","supino-reto-com-halteres":"Dumbbell_Bench_Press","supino-inclinado-com-halteres":"Incline_Dumbbell_Press","supino-inclinado-na-maquina":"Leverage_Incline_Chest_Press","chest-press":"Leverage_Chest_Press","crucifixo-com-halteres":"Dumbbell_Flyes","crossover-na-polia":"Cable_Crossover","peck-deck":"Butterfly","puxada-alta-aberta":"Wide-Grip_Lat_Pulldown","puxada-alta-neutra":"V-Bar_Pulldown","remada-baixa":"Seated_Cable_Rows","remada-baixa-neutra":"Seated_Cable_Rows","remada-articulada":"Leverage_Iso_Row","remada-unilateral-com-halter":"One-Arm_Dumbbell_Row","remada-com-apoio-no-peito":"Dumbbell_Incline_Row","remada-cavalinho-com-apoio":"Lying_T-Bar_Row","barra-fixa-assistida":"Band_Assisted_Pull-Up","pulldown-com-bracos-estendidos":"Straight-Arm_Pulldown","triceps-corda":"Triceps_Pushdown_-_Rope_Attachment","triceps-na-polia-com-barra":"Triceps_Pushdown","triceps-unilateral-na-polia":"Cable_One_Arm_Tricep_Extension","triceps-frances-com-halter":"Standing_Dumbbell_Triceps_Extension","triceps-testa":"EZ-Bar_Skullcrusher","dead-bug":"Dead_Bug","pallof-press":"Pallof_Press","prancha-lateral":"Side_Bridge","mobilidade-de-tornozelo":"Ankle_Circles","rotacao-controlada-de-quadril":"Standing_Hip_Circles","cadeira-extensora":"Leg_Extensions","leg-press-com-amplitude-confortavel":"Leg_Press","abducao-na-maquina":"Thigh_Abductor","panturrilha-sentada":"Seated_Calf_Raise","desenvolvimento-com-halteres":"Seated_Dumbbell_Press","desenvolvimento-na-maquina":"Machine_Shoulder_Military_Press","elevacao-lateral-com-halteres":"Side_Lateral_Raise","elevacao-lateral-na-polia":"Cable_Seated_Lateral_Raise","crucifixo-inverso":"Reverse_Flyes","face-pull":"Face_Pull","rosca-direta-com-barra-w":"EZ-Bar_Curl","rosca-alternada-com-halteres":"Dumbbell_Alternate_Bicep_Curl","rosca-martelo":"Hammer_Curls","rosca-scott":"Preacher_Curl","rosca-na-polia":"Standing_Biceps_Cable_Curl","agachamento-livre":"Barbell_Squat","leg-press-45":"Leg_Press","hack-squat":"Hack_Squat","agachamento-goblet":"Goblet_Squat","afundo":"Dumbbell_Lunges","step-up":"Dumbbell_Step_Ups","mesa-flexora":"Lying_Leg_Curls","flexora-sentada":"Seated_Leg_Curl","stiff-com-halteres":"Stiff-Legged_Dumbbell_Deadlift","levantamento-terra-romeno":"Romanian_Deadlift","flexora-unilateral":"Standing_Leg_Curl","hip-thrust":"Barbell_Hip_Thrust","extensao-de-quadril-na-polia":"One-Legged_Cable_Kickback","panturrilha-em-pe":"Standing_Calf_Raises","panturrilha-no-leg-press":"Calf_Press_On_The_Leg_Press_Machine","prancha":"Plank","abdominal-na-polia":"Cable_Crunch"};
+let howTimer = null, howStep = 0, howKey = null;
+function howShow(step) {
+  howStep = step;
+  const img = $('#how-img'); if (!img || !howKey) return;
+  img.src = 'img/' + HOW_IMG[howKey] + '/' + step + '.jpg';
+  $('#how-stage').textContent = step ? 'Posição final' : 'Posição inicial';
+  document.querySelectorAll('#sheet [data-act="how-step"]').forEach(b => b.classList.toggle('on', +b.dataset.v === step && !howTimer));
+  const p = $('#sheet [data-act="how-play"]'); if (p) { p.classList.toggle('on', !!howTimer); p.textContent = howTimer ? 'Pausar' : 'Animar'; }
+}
+function howPlay(on) {
+  clearInterval(howTimer); howTimer = null;
+  if (on) howTimer = setInterval(() => howShow(howStep ? 0 : 1), 1100);
+  howShow(howStep);
+}
+function openHow(key, name) {
+  const sheet = $('#sheet');
+  const info = Object.values(BANK).find(b => b.key === key);
+  howKey = HOW_IMG[key] ? key : null;
+  $('#sheet-title').textContent = name;
+  $('#how-has').hidden = !howKey;
+  $('#how-none').hidden = !!howKey;
+  $('#how-notes').textContent = info && info.notes ? info.notes : '';
+  $('#how-notes').hidden = !(info && info.notes);
+  $('#how-video').href = 'https://www.youtube.com/results?search_query=' + encodeURIComponent('como fazer ' + name);
+  if (howKey) {
+    for (const n of [0, 1]) { const pre = new Image(); pre.src = 'img/' + HOW_IMG[key] + '/' + n + '.jpg'; }
+    howStep = 0;
+    howPlay(!matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  sheet.hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('#sheet .icon-btn').focus({preventScroll:true});
+}
+function closeHow() {
+  const sheet = $('#sheet'); if (!sheet || sheet.hidden) return;
+  clearInterval(howTimer); howTimer = null; howKey = null;
+  sheet.hidden = true; document.body.style.overflow = '';
+}
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') closeHow(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHow(); });
+window.addEventListener('hashchange', closeHow);
+
 /* ---------- ações ---------- */
 let armTimer = null;
 function arm(key) { S.armed = key; clearTimeout(armTimer); armTimer = setTimeout(() => { if (S.armed === key) { S.armed = null; render(); } }, 3500); render(); }
@@ -1280,6 +1349,10 @@ function saveSettings(patch) {
   Store.saveProfile();
 }
 const A = {
+  how: el => openHow(el.dataset.key, el.dataset.name),
+  'how-close': () => closeHow(),
+  'how-step': el => { clearInterval(howTimer); howTimer = null; howShow(+el.dataset.v); },
+  'how-play': () => howPlay(!howTimer),
   start: el => startSession(el.dataset.t, el.dataset.v || null, todayStr()),
   'start-any': el => { const [t, v] = el.dataset.k.split(':'); startSession(t, v || null, S.logDate || todayStr()); },
   open: el => openSession(el.dataset.id),
