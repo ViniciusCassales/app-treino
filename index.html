@@ -243,6 +243,20 @@ details.warm summary{cursor:pointer;font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom, 0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 pre.backup{max-height:200px;overflow:auto;font-size:11px;background:var(--surface-2);padding:10px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
+.cat-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 12px 8px 4px;border-top:1px solid var(--line)}
+.cat-row:first-child{border-top:0}
+.cat-main{appearance:none;background:transparent;border:0;text-align:left;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:8px;min-width:0}
+.cat-main:hover{background:var(--surface-2)}
+.cat-main .tag::before{margin-top:1px}
+.cat-txt b{display:flex;align-items:center;gap:6px;font-weight:600;flex-wrap:wrap}
+.cat-txt small{display:block;color:var(--muted);font-size:12.5px}
+.fx{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.fx-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.fx-top small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.fx-top small.note{color:var(--warn)}
+.fx-icons{display:flex;gap:2px;flex:none}
+.icon-btn:disabled{opacity:.3;cursor:default}
+.pick-item:disabled{opacity:.5;cursor:default}
 .link.how{font-size:13px;margin-top:6px;display:inline-flex;align-items:center;gap:5px}
 .link.how::before{content:"";width:0;height:0;border-left:7px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
 .sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(8,14,22,.55);display:flex;align-items:flex-end;justify-content:center}
@@ -637,16 +651,37 @@ function buildSession(tid, variant, date) {
     else s.title = '';
     return s;
   }
-  const prev = lastSessionOf(tid, date);
-  for (const g of T.groups) {
-    const ids = prev ? prev.exercises.filter(e => e.group === g.name && BANK[e.exId]).map(e => e.exId) : g.defaults;
-    for (const exId of ids) s.exercises.push(makeExercise(BANK[exId], g.name, date, id));
-  }
-  if (prev) for (const e of prev.exercises) {
-    if (!T.groups.some(g => g.name === e.group)) s.exercises.push(makeExercise(exInfo(e), e.group || 'Extras', date, id));
-  }
+  for (const x of lineupOf(tid, date)) s.exercises.push(makeExercise(lineupInfo(x), x.group, date, id));
   return s;
 }
+
+/* ---------- fichas do catálogo ---------- */
+// Ficha = lista de exercícios de um treino. Ordem de prioridade: ficha editada > seleção do último treino > padrão do plano.
+function lineupOf(tid, date) {
+  const T = TEMPLATES[tid];
+  const saved = S.profile && S.profile.lineups && S.profile.lineups[tid];
+  if (Array.isArray(saved)) return saved.filter(x => (x.exId && BANK[x.exId]) || x.name).map(x => Object.assign({}, x));
+  const prev = lastSessionOf(tid, date || todayStr());
+  if (prev) return prev.exercises.map(e => BANK[e.exId] ? {exId: e.exId, group: e.group} : {name: e.name, key: e.key, group: e.group || 'Extras'});
+  return (T.groups || []).flatMap(g => g.defaults.map(id => ({exId: id, group: g.name})));
+}
+function lineupInfo(x) {
+  return x.exId && BANK[x.exId] ? BANK[x.exId] : { name: x.name, key: x.key || slug(x.name), reps: '', sets: '3', load: true, region: 'upper', role: 'C', notes: '', rir: '' };
+}
+function setLineup(tid, list) {
+  const order = (TEMPLATES[tid].groups || []).map(g => g.name);
+  const rank = g => { const i = order.indexOf(g); return i < 0 ? 999 : i; };
+  const clean = list.map((x, i) => [x, i]).sort((a, b) => rank(a[0].group) - rank(b[0].group) || a[1] - b[1])
+    .map(([x]) => x.exId && BANK[x.exId] ? {exId: x.exId, group: x.group} : {name: x.name, key: x.key || slug(x.name), group: x.group});
+  S.profile = Object.assign({}, S.profile, { lineups: Object.assign({}, (S.profile && S.profile.lineups) || {}, {[tid]: clean}) });
+  Store.saveProfile();
+}
+function resetLineup(tid) {
+  const l = Object.assign({}, (S.profile && S.profile.lineups) || {}); delete l[tid];
+  S.profile = Object.assign({}, S.profile, { lineups: l });
+  Store.saveProfile();
+}
+const isEditable = tid => TEMPLATES[tid] && TEMPLATES[tid].kind === 'gym';
 function startSession(tid, variant, date) {
   const d = date || todayStr();
   const s = buildSession(tid, variant, d);
@@ -672,7 +707,7 @@ function titleOf(s) {
 function sessionsOn(date) { return S.sessions.filter(x => x.date === date); }
 
 /* ---------- navegação ---------- */
-const VIEWS = ['hoje', 'peso', 'historico', 'ajustes', 'treino'];
+const VIEWS = ['hoje', 'peso', 'historico', 'ajustes', 'treino', 'ficha'];
 function go(v, force) {
   if (location.hash === '#' + v) { if (force) route(); }
   else location.hash = v;
@@ -691,7 +726,10 @@ function route() {
     if (prev !== 'sessao') S.returnTo = prev === 'historico' ? 'historico' : 'hoje';
     S.view = 'sessao';
     if (S.active.status === 'doing' && S.active.date === todayStr()) requestWake();
+  } else if (v === 'ficha' && !(S.editTpl && isEditable(S.editTpl))) {
+    location.replace('#hoje'); S.view = 'hoje'; render(); return;
   } else S.view = v;
+  if (S.view !== 'ficha') S.fxPick = null;
   S.armed = null;
   render();
   if (prev !== S.view || v === 'treino') window.scrollTo(0, 0);
@@ -723,6 +761,7 @@ function render() {
   else if (S.view === 'historico') html = viewHistorico();
   else if (S.view === 'ajustes') html = viewAjustes();
   else if (S.view === 'sessao') html = viewSessao();
+  else if (S.view === 'ficha') html = viewFicha();
   main.innerHTML = html;
   for (const [id, v] of Object.entries(keep)) { const el = document.getElementById(id); if (el) { el.value = v; el.dataset.touched = '1'; } }
   if (focusId && keep[focusId] != null) { const el = document.getElementById(focusId); if (el) el.focus(); }
@@ -821,16 +860,89 @@ function viewHoje() {
       <button class="btn primary" type="submit">Salvar</button>
     </form></section>`;
 
-  // outro treino
+  // catálogo
   const ld = S.logDate || t;
-  const opts = [['A','Treino A','Peito, costas, tríceps'],['B1','Treino B1','Core e mobilidade'],['B2','Treino B2','Inferiores e core'],['C','Treino C','Costas, ombros, bíceps'],['D','Treino D','Pernas e core'],
-    ['PADEL','Padel','Feito + esforço'],['FISIO','Fisioterapia','Exercícios prescritos'],['LIVRE','Treino livre','Monte na hora'],['OUTRO','Outra atividade','Duração e esforço']];
-  out += `<section class="stack"><div class="sec-head"><h2>Registrar outro treino</h2></div>
+  const past = ld !== t;
+  const cat = ['A', 'B1', 'B2', 'C', 'D', 'PADEL', 'FISIO', 'LIVRE', 'OUTRO'];
+  const lineups = (S.profile && S.profile.lineups) || {};
+  out += `<section class="stack"><div class="sec-head"><h2>Catálogo de treinos</h2><span class="small muted">toque para ver e editar</span></div>
     <label class="f" style="max-width:220px">Data do treino<input class="in" type="date" id="log-date" data-in="log-date" value="${ld}" max="${t}"></label>
-    ${ld !== t ? `<p class="hint">Registro retroativo: o treino entra direto como feito em ${fmtD(ld, {weekday:'long', day:'2-digit', month:'2-digit'})}.</p>` : ''}
-    <div class="tpl-grid">${opts.map(([k, a, b]) => `<button class="tpl" data-act="start-any" data-k="${k}"><b>${a}</b><small>${b}</small></button>`).join('')}</div>
+    ${past ? `<p class="hint">Registro retroativo: o treino entra direto como feito em ${fmtD(ld, {weekday:'long', day:'2-digit', month:'2-digit'})}.</p>` : ''}
+    <div class="list">${cat.map(k => {
+      const T = TEMPLATES[k], ed = isEditable(k);
+      const n = ed ? lineupOf(k, ld).length : 0;
+      const sub = k === 'PADEL' ? 'Feito + esforço' : k === 'OUTRO' ? 'Duração e esforço' : `${T.focus} · ${n} ${n === 1 ? 'exercício' : 'exercícios'}`;
+      const label = k === 'PADEL' ? 'Marcar feito' : past ? 'Registrar' : (ed ? 'Começar' : 'Registrar');
+      return `<div class="cat-row">
+        <button class="cat-main" data-act="${ed ? 'ficha' : 'start-any'}" data-t="${k}" data-k="${k}"><span class="tag ${T.color}"></span>
+          <span class="cat-txt"><b>${esc(T.title)}${lineups[k] ? ' <span class="pill">editado</span>' : ''}</b><small>${esc(sub)}</small></span>${ed ? '<span class="muted">›</span>' : ''}</button>
+        <button class="btn sm ${ed ? '' : 'ghost'}" data-act="start-any" data-k="${k}">${label}</button></div>`;
+    }).join('')}</div>
   </section>`;
   return out;
+}
+
+/* ---- Ficha (edição do treino do catálogo) ---- */
+function viewFicha() {
+  const tid = S.editTpl, T = TEMPLATES[tid];
+  const list = lineupOf(tid, todayStr());
+  const edited = !!(S.profile && S.profile.lineups && S.profile.lineups[tid]);
+  const groups = (T.groups || []).map(g => g.name);
+  let out = `<section class="sess-head">
+    <div class="row between"><button class="link" data-act="ficha-back">← Voltar</button>${edited ? '<span class="pill">Ficha editada</span>' : '<span class="pill">Ficha do plano</span>'}</div>
+    <div class="eyebrow">Catálogo · ficha</div>
+    <h1>${esc(T.title)}</h1>
+    <p class="muted">${esc(T.focus)}</p>
+    ${T.hint ? `<p class="hint">${esc(T.hint)}</p>` : ''}
+    <p class="hint">As mudanças valem para os próximos treinos. Treinos já registrados não mudam.</p>
+  </section>`;
+  for (const g of (T.groups || [])) {
+    const rows = list.map((x, i) => [x, i]).filter(([x]) => x.group === g.name);
+    const adding = S.fxPick && S.fxPick.mode === 'add' && S.fxPick.group === g.name;
+    out += `<section class="group">
+      <div class="group-head"><h2>${esc(g.name)}</h2><span class="count">${g.pick === 'todos' ? 'circuito' : 'escolha ' + esc(g.pick)} · ${rows.length} na ficha</span>
+        <button class="btn ghost sm" data-act="fx-add" data-g="${esc(g.name)}">${adding ? 'Fechar' : '+ Adicionar'}</button></div>
+      ${g.hint ? `<p class="hint">${esc(g.hint)}</p>` : ''}
+      ${g.gate ? `<p class="gate">Posteriores: só com autorização do fisioterapeuta. Não inclua stiff, terra ou flexora por conta própria durante a recuperação.</p>` : ''}
+      ${adding ? fxPicker(g, list, -1) : ''}
+      ${rows.length ? rows.map(([x, i]) => fxRow(x, i, list, g)).join('') : '<p class="hint">Nenhum exercício deste grupo na ficha.</p>'}
+    </section>`;
+  }
+  const extras = list.map((x, i) => [x, i]).filter(([x]) => !groups.includes(x.group));
+  const names = [...new Set(Object.values(BANK).map(b => b.name))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  out += `<section class="group">
+    <div class="group-head"><h2>${groups.length ? 'Extras' : 'Exercícios'}</h2><span class="count">${extras.length ? extras.length + ' na ficha' : ''}</span></div>
+    ${extras.map(([x, i]) => fxRow(x, i, list, null)).join('')}
+    <form class="add-ex" data-form="fx-custom"><input class="in" id="fx-name" data-keep list="fx-bank" autocomplete="off" placeholder="Nome do exercício" aria-label="Nome do exercício"><button class="btn" type="submit">Adicionar</button></form>
+    <datalist id="fx-bank">${names.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+  </section>
+  <section class="stack">
+    <button class="btn primary block" data-act="start-any" data-k="${tid}">${(S.logDate || todayStr()) !== todayStr() ? 'Registrar este treino em ' + fmtD(S.logDate) : 'Começar este treino'}</button>
+    ${edited ? `<button class="btn ghost block" data-act="fx-reset">${S.armed === 'fx-reset' ? 'Toque de novo para voltar à ficha do plano' : 'Restaurar ficha do plano'}</button>` : ''}
+  </section>`;
+  return out;
+}
+function fxRow(x, i, list, g) {
+  const info = lineupInfo(x);
+  const swapping = S.fxPick && S.fxPick.mode === 'swap' && S.fxPick.i === i;
+  const first = !list.slice(0, i).some(y => y.group === x.group);
+  return `<div class="fx">
+    <div class="fx-top"><div style="min-width:0"><b>${esc(info.name)}</b>
+      <small>${info.reps ? `${info.role === 'P' ? 'Principal' : 'Complementar'} · ${esc(info.sets)} × ${esc(info.reps)}` : 'Exercício personalizado'}</small>
+      ${info.notes ? `<small class="note">${esc(info.notes)}</small>` : ''}</div>
+      <div class="fx-icons"><button class="icon-btn" data-act="fx-up" data-i="${i}" aria-label="Subir ${esc(info.name)}" ${first ? 'disabled' : ''}>↑</button><button class="icon-btn" data-act="fx-del" data-i="${i}" aria-label="Remover ${esc(info.name)}">✕</button></div></div>
+    <div class="row">${g ? `<button class="btn ghost sm" data-act="fx-swap" data-i="${i}">${swapping ? 'Cancelar troca' : 'Trocar'}</button>` : ''}<button class="link how" data-act="how" data-key="${esc(info.key)}" data-name="${esc(info.name)}">Ver como fazer</button></div>
+    ${swapping ? fxPicker(g, list, i) : ''}
+  </div>`;
+}
+function fxPicker(g, list, i) {
+  const used = new Set(list.map(x => x.exId).filter(Boolean));
+  const cur = i >= 0 ? list[i].exId : null;
+  return `<div class="picker"><span class="small muted" style="padding:2px 4px">${i >= 0 ? 'Trocar por:' : 'Adicionar:'}</span>${g.items.map(it => {
+    const on = it.id === cur, taken = used.has(it.id) && !on;
+    return `<button class="pick-item ${on ? 'on' : ''}" data-act="fx-choose" data-id="${it.id}" ${taken ? 'disabled' : ''}><span class="box"></span><span><b>${esc(it.name)}</b>
+      <small>${it.role === 'P' ? 'Principal' : 'Complementar'} · ${esc(it.sets)} × ${esc(it.reps)}${taken ? ' · já na ficha' : it.notes ? ' · ' + esc(it.notes) : ''}</small></span></button>`;
+  }).join('')}</div>`;
 }
 
 /* ---- Sessão ---- */
@@ -888,7 +1000,8 @@ function gymForm(s, T) {
     ${extras.map(([e, i]) => exCard(s, e, i)).join('')}
     <form class="add-ex" data-form="add-ex"><input class="in" id="custom-name" data-keep list="bank-list" autocomplete="off" placeholder="Nome do exercício" aria-label="Nome do exercício"><button class="btn" type="submit">Adicionar</button></form>
     <datalist id="bank-list">${names.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
-  </section>`;
+  </section>
+  <button class="btn ghost block" data-act="save-lineup">Salvar esta seleção como ficha do ${esc(T.title)}</button>`;
   return out;
 }
 function pickerHtml(s, g) {
@@ -1349,6 +1462,30 @@ function saveSettings(patch) {
   Store.saveProfile();
 }
 const A = {
+  ficha: el => { S.editTpl = el.dataset.t; S.fxPick = null; go('ficha', true); },
+  'ficha-back': () => go('hoje'),
+  'fx-add': el => { const g = el.dataset.g; S.fxPick = S.fxPick && S.fxPick.mode === 'add' && S.fxPick.group === g ? null : {mode: 'add', group: g}; render(); },
+  'fx-swap': el => { const i = +el.dataset.i; S.fxPick = S.fxPick && S.fxPick.mode === 'swap' && S.fxPick.i === i ? null : {mode: 'swap', i}; render(); },
+  'fx-choose': el => {
+    const tid = S.editTpl, list = lineupOf(tid, todayStr()), it = BANK[el.dataset.id], p = S.fxPick;
+    if (!it || !p) return;
+    if (p.mode === 'swap') { const old = lineupInfo(list[p.i]).name; list[p.i] = {exId: it.id, group: list[p.i].group}; toast(`${old} → ${it.name}`); }
+    else { list.push({exId: it.id, group: p.group}); toast(`${it.name} adicionado.`); }
+    S.fxPick = null; setLineup(tid, list); render();
+  },
+  'fx-del': el => { const tid = S.editTpl, list = lineupOf(tid, todayStr()); const [x] = list.splice(+el.dataset.i, 1); S.fxPick = null; setLineup(tid, list); toast(`${lineupInfo(x).name} removido da ficha.`); render(); },
+  'fx-up': el => {
+    const tid = S.editTpl, list = lineupOf(tid, todayStr()), i = +el.dataset.i;
+    let j = i - 1; while (j >= 0 && list[j].group !== list[i].group) j--;
+    if (j < 0) return;
+    [list[j], list[i]] = [list[i], list[j]]; S.fxPick = null; setLineup(tid, list); render();
+  },
+  'fx-reset': () => { if (S.armed !== 'fx-reset') return arm('fx-reset'); S.armed = null; resetLineup(S.editTpl); toast('Ficha do plano restaurada.'); render(); },
+  'save-lineup': () => {
+    const s = S.active; if (!s) return;
+    setLineup(s.template, s.exercises.map(e => BANK[e.exId] ? {exId: e.exId, group: e.group} : {name: e.name, key: e.key, group: e.group}));
+    toast(`Ficha do ${TPL(s).title} atualizada.`);
+  },
   how: el => openHow(el.dataset.key, el.dataset.name),
   'how-close': () => closeHow(),
   'how-step': el => { clearInterval(howTimer); howTimer = null; howShow(+el.dataset.v); },
@@ -1505,6 +1642,16 @@ document.addEventListener('submit', e => {
     s.exercises.push(makeExercise(info, group, s.date, s.id));
     delete inp.dataset.touched; inp.value = '';
     saveSoon(); render();
+  } else if (kind === 'fx-custom') {
+    const inp = $('#fx-name'); const name = (inp.value || '').trim();
+    if (!name) { toast('Digite o nome do exercício.'); return; }
+    const tid = S.editTpl, T = TEMPLATES[tid];
+    const list = lineupOf(tid, todayStr());
+    const b = BANK_BY_NAME[name.toLowerCase()];
+    const group = T.groups && T.groups.length ? 'Extras' : 'Exercícios';
+    list.push(b ? {exId: b.id, group} : {name, key: slug(name), group});
+    delete inp.dataset.touched; inp.value = '';
+    setLineup(tid, list); toast('Exercício adicionado à ficha.'); render();
   }
 });
 
