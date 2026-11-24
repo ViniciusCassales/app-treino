@@ -243,6 +243,8 @@ details.warm summary{cursor:pointer;font-weight:600}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom, 0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 pre.backup{max-height:200px;overflow:auto;font-size:11px;background:var(--surface-2);padding:10px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
+.plan.skipped{padding:10px 14px;background:transparent;border-style:dashed}
+.plan.skipped .tag{font-size:12px;letter-spacing:.02em}
 .cat-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 12px 8px 4px;border-top:1px solid var(--line)}
 .cat-row:first-child{border-top:0}
 .cat-main{appearance:none;background:transparent;border:0;text-align:left;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:8px;min-width:0}
@@ -383,11 +385,12 @@ const TEMPLATES = {
   B2: { id:'B2', kind:'gym', color:'gym', title:'Treino B2', focus:'Inferiores moderado e core', needs:'lower', warm:'gym',
     hint:'Para quando não jogou terça às 19h. Volume reduzido para preservar o jogo de quinta. Sem posterior sem orientação específica.',
     groups:[
-      { name:'Inferiores', region:'lower', pick:'todos', rir:'Moderada; RIR a definir com profissional', defaults:['B2-QUA-01','B2-QUA-02','B2-QUA-03','B2-QUA-04'], items:[
-        X('B2-QUA-01','Cadeira extensora','P','3','10–15','Condicionada à liberação','Leg press, se autorizado'),
-        X('B2-QUA-02','Leg press com amplitude confortável','P','2–3','10–12','Amplitude e carga autorizadas','Cadeira extensora, se autorizada'),
+      { name:'Inferiores', region:'lower', pick:'todos', rir:'Moderada; RIR a definir com profissional', defaults:['B2-QUA-01','B2-QUA-05','B2-QUA-03','B2-QUA-04'], items:[
+        X('B2-QUA-01','Cadeira extensora','P','3','10–15','Condicionada à liberação. Se doer com a perna esticada no fim do movimento, pare um pouco antes de estender tudo','Hack slide, se autorizado'),
+        X('B2-QUA-05','Hack slide','P','2–3','10–12','No lugar do leg press: costas apoiadas e quadril estendido no início. Pés no meio da plataforma e amplitude confortável','Cadeira extensora, se autorizada',{key:'hack-squat'}),
+        X('B2-QUA-02','Leg press com amplitude confortável','P','2–3','10–12','Causou dor com a perna esticada no início do movimento. Substituído pelo hack slide','Hack slide',{hidden:true}),
         X('B2-QUA-03','Abdução de quadril na máquina','C','2–3','12–15','Condicionada à liberação','',{key:'abducao-na-maquina'}),
-        X('B2-QUA-04','Panturrilha sentada','C','3','12–15','Condicionada à liberação','Panturrilha em pé/no leg press, se autorizada'),
+        X('B2-QUA-04','Panturrilha sentada','C','3','12–15','Condicionada à liberação','Panturrilha em pé, se autorizada'),
       ]},
       { name:'Core', region:'core', pick:'todos', load:false, rir:'Leve a moderada', defaults:['B2-CORE-01','B2-CORE-02'], items:[
         X('B2-CORE-01','Pallof press','C','2','10 por lado','','Dead bug',{load:true}),
@@ -426,12 +429,12 @@ const TEMPLATES = {
   D: { id:'D', kind:'gym', color:'gym', title:'Treino D', focus:'Pernas, glúteos, panturrilhas e core', needs:'lower', warm:'gym',
     hint:'Principal sessão de força de inferiores. Seleção, amplitude, carga e progressão alinhadas com fisioterapeuta/personal.',
     groups:[
-      { name:'Quadríceps', region:'lower', pick:'2–3', rir:'A definir após liberação; referência 2–3 RIR', defaults:['D-QUA-02','D-QUA-05'], items:[
+      { name:'Quadríceps', region:'lower', pick:'2–3', rir:'A definir após liberação; referência 2–3 RIR', defaults:['D-QUA-03','D-QUA-05'], items:[
         X('D-QUA-01','Agachamento livre','P','3','8–10','Profundidade conforme liberação; não iniciar profundo durante a recuperação','Goblet; hack squat'),
-        X('D-QUA-02','Leg press 45°','P','3','10–12','Amplitude autorizada','Hack squat; cadeira extensora'),
-        X('D-QUA-03','Hack squat','P','3','8–12','Condicionado à liberação','Leg press; goblet'),
-        X('D-QUA-04','Agachamento goblet','P','3','10–12','Amplitude autorizada','Hack squat; leg press'),
-        X('D-QUA-05','Cadeira extensora','C','3','12–15','Condicionada à liberação'),
+        X('D-QUA-03','Hack slide','P','3','8–12','No lugar do leg press: costas apoiadas e quadril estendido no início. Pés no meio da plataforma; desça só até onde não puxar o posterior','Agachamento goblet; cadeira extensora',{key:'hack-squat'}),
+        X('D-QUA-02','Leg press 45°','P','3','10–12','Causou dor com a perna esticada no início do movimento. Substituído pelo hack slide','Hack slide',{hidden:true}),
+        X('D-QUA-04','Agachamento goblet','P','3','10–12','Amplitude autorizada','Hack slide'),
+        X('D-QUA-05','Cadeira extensora','C','3','12–15','Condicionada à liberação. Se doer com a perna esticada no fim do movimento, pare um pouco antes de estender tudo'),
         X('D-QUA-06','Afundo','P','2–3','10 por perna','Exige liberação para padrão unilateral','Step-up',{rir:'A definir com profissional'}),
         X('D-QUA-07','Step-up','P','2–3','10 por perna','Altura/carga conforme liberação','Afundo',{rir:'A definir com profissional'}),
       ]},
@@ -449,9 +452,9 @@ const TEMPLATES = {
         X('D-GLU-04','Extensão de quadril na polia','C','2–3','12–15','Condicionada à liberação','Hip thrust'),
       ]},
       { name:'Panturrilhas', region:'lower', pick:'1', rir:'2–3 RIR, após liberação', defaults:['D-PAN-01'], items:[
-        X('D-PAN-01','Panturrilha em pé','C','3','12–15','','Sentada; no leg press'),
-        X('D-PAN-02','Panturrilha sentada','C','3','12–15','','Em pé; no leg press'),
-        X('D-PAN-03','Panturrilha no leg press','C','3','12–15','','Em pé; sentada'),
+        X('D-PAN-01','Panturrilha em pé','C','3','12–15','','Sentada'),
+        X('D-PAN-02','Panturrilha sentada','C','3','12–15','','Em pé'),
+        X('D-PAN-03','Panturrilha no leg press','C','3','12–15','Mesma posição do leg press (quadril dobrado e perna esticada). Fora do catálogo enquanto houver dor','Em pé; sentada',{hidden:true}),
       ]},
       { name:'Core', region:'core', pick:'1–2', load:false, rir:'Controlada; sem falha', defaults:['D-COR-01'], items:[
         X('D-COR-01','Prancha','C','2–3','30–45 s','','Pallof press; prancha lateral'),
@@ -507,6 +510,12 @@ for (const T of Object.values(TEMPLATES)) {
   }
 }
 const TPL = s => TEMPLATES[s && s.template] || TEMPLATES.LIVRE;
+const bankNames = () => [...new Set(Object.values(BANK).filter(b => !b.hidden).map(b => b.name))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+// Exercícios tirados do catálogo e o que entra no lugar nas fichas salvas.
+const REPLACED = { 'D-QUA-02': 'D-QUA-03', 'B2-QUA-02': 'B2-QUA-05', 'D-PAN-03': 'D-PAN-01' };
+// Nomes diferentes para o mesmo exercício compartilham o histórico de cargas.
+const KEY_ALIAS = { 'hack-slide': 'hack-squat' };
+const canon = k => KEY_ALIAS[k] || k;
 
 function repRange(str) {
   const s = String(str || '');
@@ -573,7 +582,7 @@ function historyFor(key, s) {
   const out = [];
   for (const x of S.sessions) {
     if (x.id === s.id || !x.exercises || x.date > s.date) continue;
-    const e = x.exercises.find(y => y.key === key);
+    const e = x.exercises.find(y => canon(y.key) === canon(key));
     if (!e) continue;
     const sets = workSets(e);
     if (sets.length) out.push({date:x.date, at:x.startedAt || 0, sets, painGlute:x.painGlute, painElbow:x.painElbow});
@@ -660,10 +669,23 @@ function buildSession(tid, variant, date) {
 function lineupOf(tid, date) {
   const T = TEMPLATES[tid];
   const saved = S.profile && S.profile.lineups && S.profile.lineups[tid];
-  if (Array.isArray(saved)) return saved.filter(x => (x.exId && BANK[x.exId]) || x.name).map(x => Object.assign({}, x));
-  const prev = lastSessionOf(tid, date || todayStr());
-  if (prev) return prev.exercises.map(e => BANK[e.exId] ? {exId: e.exId, group: e.group} : {name: e.name, key: e.key, group: e.group || 'Extras'});
-  return (T.groups || []).flatMap(g => g.defaults.map(id => ({exId: id, group: g.name})));
+  let list;
+  if (Array.isArray(saved)) list = saved.filter(x => (x.exId && BANK[x.exId]) || x.name).map(x => Object.assign({}, x));
+  else {
+    const prev = lastSessionOf(tid, date || todayStr());
+    if (prev) list = prev.exercises.map(e => BANK[e.exId] ? {exId: e.exId, group: e.group} : {name: e.name, key: e.key, group: e.group || 'Extras'});
+    else return (T.groups || []).flatMap(g => g.defaults.map(id => ({exId: id, group: g.name})));
+  }
+  // troca exercícios tirados do catálogo pelo substituto, sem duplicar
+  const seen = new Set(), out = [];
+  for (const x of list) {
+    if (x.exId && REPLACED[x.exId]) x.exId = REPLACED[x.exId];
+    if (!x.exId && x.name && canon(slug(x.name)) === 'hack-squat') { const b = BANK[tid === 'B2' ? 'B2-QUA-05' : 'D-QUA-03']; x.exId = b.id; delete x.name; delete x.key; }
+    if (x.exId && seen.has(x.exId)) continue;
+    if (x.exId) seen.add(x.exId);
+    out.push(x);
+  }
+  return out;
 }
 function lineupInfo(x) {
   return x.exId && BANK[x.exId] ? BANK[x.exId] : { name: x.name, key: x.key || slug(x.name), reps: '', sets: '3', load: true, region: 'upper', role: 'C', notes: '', rir: '' };
@@ -783,6 +805,19 @@ function renderSync() {
 const loadingBlock = msg => `<div class="empty">${esc(msg || 'Carregando seus registros…')}</div>`;
 
 /* ---- Hoje ---- */
+// Sessões planejadas que você marcou como "não vou fazer", por data: { 'AAAA-MM-DD': ['PADEL:19h', 'A'] }
+const skipKey = p => p.t + (p.slot ? ':' + p.slot : '');
+const isSkipped = (date, k) => !!(S.profile && S.profile.skips && (S.profile.skips[date] || []).includes(k));
+function setSkip(date, k, on) {
+  const all = Object.assign({}, (S.profile && S.profile.skips) || {});
+  const cur = new Set(all[date] || []);
+  if (on) cur.add(k); else cur.delete(k);
+  if (cur.size) all[date] = [...cur]; else delete all[date];
+  const limit = addDays(todayStr(), -60);
+  for (const d of Object.keys(all)) if (d < limit) delete all[d];
+  S.profile = Object.assign({}, S.profile, { skips: all });
+  Store.saveProfile();
+}
 function planCard(p, date, reco) {
   const T = TEMPLATES[p.t];
   const st = settings();
@@ -797,7 +832,16 @@ function planCard(p, date, reco) {
   let actions;
   if (doing) actions = `<button class="btn primary" data-act="open" data-id="${doing.id}">Continuar</button>`;
   else if (fin) actions = `<span class="pill done">Feito ✓</span><button class="btn ghost sm" data-act="open" data-id="${fin.id}">${isPadel ? 'Editar esforço' : 'Ver registro'}</button>`;
-  else actions = `<button class="btn primary" data-act="start" data-t="${p.t}" data-v="${p.slot || ''}">${isPadel ? 'Marcar feito' : 'Começar treino'}</button>`;
+  else {
+    const sk = skipKey(p);
+    if (isSkipped(date, sk)) {
+      return `<article class="plan skipped"><div class="row between">
+        <span><span class="tag ${T.color}">${esc(p.time)}</span> <b>${esc(title)}</b> <span class="muted">· ${isPadel ? 'não vai jogar' : 'não vai fazer'}</span></span>
+        <button class="btn ghost sm" data-act="unskip" data-k="${sk}">Desfazer</button></div></article>`;
+    }
+    actions = `<button class="btn primary" data-act="start" data-t="${p.t}" data-v="${p.slot || ''}">${isPadel ? 'Marcar feito' : 'Começar treino'}</button>
+      <button class="btn ghost sm" data-act="skip" data-k="${sk}">${isPadel ? 'Não vou jogar' : 'Não vou fazer'}</button>`;
+  }
   return `<article class="plan ${reco ? 'is-reco' : ''}">
     <div class="plan-head"><span class="tag ${T.color}">${T.color === 'padel' ? 'Padel' : 'Academia'}</span><span class="time">${esc(p.time)}</span>
       ${reco ? `<span class="pill reco">${esc(reco)}</span>` : ''}${needs ? `<span class="pill warn">${needs}</span>` : ''}</div>
@@ -909,7 +953,7 @@ function viewFicha() {
     </section>`;
   }
   const extras = list.map((x, i) => [x, i]).filter(([x]) => !groups.includes(x.group));
-  const names = [...new Set(Object.values(BANK).map(b => b.name))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const names = bankNames();
   out += `<section class="group">
     <div class="group-head"><h2>${groups.length ? 'Extras' : 'Exercícios'}</h2><span class="count">${extras.length ? extras.length + ' na ficha' : ''}</span></div>
     ${extras.map(([x, i]) => fxRow(x, i, list, null)).join('')}
@@ -938,7 +982,7 @@ function fxRow(x, i, list, g) {
 function fxPicker(g, list, i) {
   const used = new Set(list.map(x => x.exId).filter(Boolean));
   const cur = i >= 0 ? list[i].exId : null;
-  return `<div class="picker"><span class="small muted" style="padding:2px 4px">${i >= 0 ? 'Trocar por:' : 'Adicionar:'}</span>${g.items.map(it => {
+  return `<div class="picker"><span class="small muted" style="padding:2px 4px">${i >= 0 ? 'Trocar por:' : 'Adicionar:'}</span>${g.items.filter(it => !it.hidden).map(it => {
     const on = it.id === cur, taken = used.has(it.id) && !on;
     return `<button class="pick-item ${on ? 'on' : ''}" data-act="fx-choose" data-id="${it.id}" ${taken ? 'disabled' : ''}><span class="box"></span><span><b>${esc(it.name)}</b>
       <small>${it.role === 'P' ? 'Principal' : 'Complementar'} · ${esc(it.sets)} × ${esc(it.reps)}${taken ? ' · já na ficha' : it.notes ? ' · ' + esc(it.notes) : ''}</small></span></button>`;
@@ -994,7 +1038,7 @@ function gymForm(s, T) {
     </section>`;
   }
   const extras = s.exercises.map((e, i) => [e, i]).filter(([e]) => !groups.includes(e.group));
-  const names = [...new Set(Object.values(BANK).map(b => b.name))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const names = bankNames();
   out += `<section class="group">
     <div class="group-head"><h2>${groups.length ? 'Extras' : 'Exercícios'}</h2><span class="count">${extras.length ? extras.length + ' na ficha' : ''}</span></div>
     ${extras.map(([e, i]) => exCard(s, e, i)).join('')}
@@ -1005,7 +1049,7 @@ function gymForm(s, T) {
   return out;
 }
 function pickerHtml(s, g) {
-  return `<div class="picker">${g.items.map(it => {
+  return `<div class="picker">${g.items.filter(it => !it.hidden || s.exercises.some(e => e.exId === it.id)).map(it => {
     const on = s.exercises.some(e => e.exId === it.id);
     return `<button class="pick-item ${on ? 'on' : ''}" data-act="pick" data-id="${it.id}" aria-pressed="${on}"><span class="box"></span><span><b>${esc(it.name)}</b>
       <small>${it.role === 'P' ? 'Principal' : 'Complementar'} · ${esc(it.sets)} × ${esc(it.reps)}${it.notes ? ' · ' + esc(it.notes) : ''}</small></span></button>`;
@@ -1206,7 +1250,7 @@ function viewHistorico() {
   for (const s of all) for (const e of (s.exercises || [])) {
     const ws = workSets(e).filter(x => x.kg != null);
     if (!ws.length) continue;
-    (exMap[e.key] = exMap[e.key] || {name:e.name, pts:[]}).pts.push({x:s.date, y:Math.max(...ws.map(x => x.kg)), sets:ws});
+    (exMap[canon(e.key)] = exMap[canon(e.key)] || {name:e.name, pts:[]}).pts.push({x:s.date, y:Math.max(...ws.map(x => x.kg)), sets:ws});
   }
   const keys = Object.keys(exMap).sort((a, b) => exMap[b].pts.length - exMap[a].pts.length || exMap[a].name.localeCompare(exMap[b].name));
   out += `<section class="card"><h2>Evolução por exercício</h2>`;
@@ -1310,7 +1354,7 @@ function buildExport() {
         const loads = ws.map(x => x.kg).filter(n => n != null);
         const top = loads.length ? Math.max(...loads) : null;
         if (ws.length) {
-          const st = exStats[e.key] = exStats[e.key] || { exercise: e.name, key: e.key, sessions: 0, first_date: s.date, first_top_kg: top, last_date: null, last_top_kg: null, best_kg: null, best_date: null };
+          const st = exStats[canon(e.key)] = exStats[canon(e.key)] || { exercise: e.name, key: e.key, sessions: 0, first_date: s.date, first_top_kg: top, last_date: null, last_top_kg: null, best_kg: null, best_date: null };
           st.sessions++; st.last_date = s.date; st.last_top_kg = top;
           if (top != null && (st.best_kg == null || top > st.best_kg)) { st.best_kg = top; st.best_date = s.date; }
         }
@@ -1427,6 +1471,7 @@ function howPlay(on) {
   howShow(howStep);
 }
 function openHow(key, name) {
+  key = canon(key);
   const sheet = $('#sheet');
   const info = Object.values(BANK).find(b => b.key === key);
   howKey = HOW_IMG[key] ? key : null;
@@ -1462,6 +1507,8 @@ function saveSettings(patch) {
   Store.saveProfile();
 }
 const A = {
+  skip: el => { setSkip(todayStr(), el.dataset.k, true); render(); },
+  unskip: el => { setSkip(todayStr(), el.dataset.k, false); render(); },
   ficha: el => { S.editTpl = el.dataset.t; S.fxPick = null; go('ficha', true); },
   'ficha-back': () => go('hoje'),
   'fx-add': el => { const g = el.dataset.g; S.fxPick = S.fxPick && S.fxPick.mode === 'add' && S.fxPick.group === g ? null : {mode: 'add', group: g}; render(); },
