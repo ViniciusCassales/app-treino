@@ -388,7 +388,7 @@ const TEMPLATES = {
       { name:'Inferiores', region:'lower', pick:'todos', rir:'Moderada; RIR a definir com profissional', defaults:['B2-QUA-01','B2-QUA-05','B2-QUA-03','B2-QUA-04'], items:[
         X('B2-QUA-01','Cadeira extensora','P','3','10–15','Condicionada à liberação. Se doer com a perna esticada no fim do movimento, pare um pouco antes de estender tudo','Hack slide, se autorizado'),
         X('B2-QUA-05','Hack slide','P','2–3','10–12','No lugar do leg press: costas apoiadas e quadril estendido no início. Pés no meio da plataforma e amplitude confortável','Cadeira extensora, se autorizada',{key:'hack-squat'}),
-        X('B2-QUA-02','Leg press com amplitude confortável','P','2–3','10–12','Causou dor com a perna esticada no início do movimento. Substituído pelo hack slide','Hack slide',{hidden:true}),
+        X('B2-QUA-02','Leg press com amplitude confortável','P','2–3','10–12','Em pausa: doeu com a perna esticada no início do movimento. Volte quando não doer mais','Hack slide'),
         X('B2-QUA-03','Abdução de quadril na máquina','C','2–3','12–15','Condicionada à liberação','',{key:'abducao-na-maquina'}),
         X('B2-QUA-04','Panturrilha sentada','C','3','12–15','Condicionada à liberação','Panturrilha em pé, se autorizada'),
       ]},
@@ -432,7 +432,7 @@ const TEMPLATES = {
       { name:'Quadríceps', region:'lower', pick:'2–3', rir:'A definir após liberação; referência 2–3 RIR', defaults:['D-QUA-03','D-QUA-05'], items:[
         X('D-QUA-01','Agachamento livre','P','3','8–10','Profundidade conforme liberação; não iniciar profundo durante a recuperação','Goblet; hack squat'),
         X('D-QUA-03','Hack slide','P','3','8–12','No lugar do leg press: costas apoiadas e quadril estendido no início. Pés no meio da plataforma; desça só até onde não puxar o posterior','Agachamento goblet; cadeira extensora',{key:'hack-squat'}),
-        X('D-QUA-02','Leg press 45°','P','3','10–12','Causou dor com a perna esticada no início do movimento. Substituído pelo hack slide','Hack slide',{hidden:true}),
+        X('D-QUA-02','Leg press 45°','P','3','10–12','Em pausa: doeu com a perna esticada no início do movimento. Volte quando não doer mais','Hack slide'),
         X('D-QUA-04','Agachamento goblet','P','3','10–12','Amplitude autorizada','Hack slide'),
         X('D-QUA-05','Cadeira extensora','C','3','12–15','Condicionada à liberação. Se doer com a perna esticada no fim do movimento, pare um pouco antes de estender tudo'),
         X('D-QUA-06','Afundo','P','2–3','10 por perna','Exige liberação para padrão unilateral','Step-up',{rir:'A definir com profissional'}),
@@ -454,7 +454,7 @@ const TEMPLATES = {
       { name:'Panturrilhas', region:'lower', pick:'1', rir:'2–3 RIR, após liberação', defaults:['D-PAN-01'], items:[
         X('D-PAN-01','Panturrilha em pé','C','3','12–15','','Sentada'),
         X('D-PAN-02','Panturrilha sentada','C','3','12–15','','Em pé'),
-        X('D-PAN-03','Panturrilha no leg press','C','3','12–15','Mesma posição do leg press (quadril dobrado e perna esticada). Fora do catálogo enquanto houver dor','Em pé; sentada',{hidden:true}),
+        X('D-PAN-03','Panturrilha no leg press','C','3','12–15','Mesma posição do leg press (quadril dobrado e perna esticada). Evite enquanto o leg press doer','Em pé; sentada'),
       ]},
       { name:'Core', region:'core', pick:'1–2', load:false, rir:'Controlada; sem falha', defaults:['D-COR-01'], items:[
         X('D-COR-01','Prancha','C','2–3','30–45 s','','Pallof press; prancha lateral'),
@@ -513,6 +513,21 @@ const TPL = s => TEMPLATES[s && s.template] || TEMPLATES.LIVRE;
 const bankNames = () => [...new Set(Object.values(BANK).filter(b => !b.hidden).map(b => b.name))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 // Exercícios tirados do catálogo e o que entra no lugar nas fichas salvas.
 const REPLACED = { 'D-QUA-02': 'D-QUA-03', 'B2-QUA-02': 'B2-QUA-05', 'D-PAN-03': 'D-PAN-01' };
+// Troca única: fichas do B2 e do D que ainda tinham leg press passam a usar o hack slide.
+// Roda uma vez só; depois disso o leg press pode voltar à ficha normalmente.
+function migrateOnce() {
+  const done = (S.profile && S.profile.migrations) || [];
+  if (done.includes('leg-press-hack-slide')) return;
+  for (const tid of ['B2', 'D']) {
+    const list = lineupOf(tid, todayStr());
+    if (!list.some(x => REPLACED[x.exId])) continue;
+    const seen = new Set();
+    setLineup(tid, list.map(x => REPLACED[x.exId] ? Object.assign({}, x, {exId: REPLACED[x.exId]}) : x)
+      .filter(x => !x.exId || (!seen.has(x.exId) && seen.add(x.exId))));
+  }
+  S.profile = Object.assign({}, S.profile, { migrations: done.concat(['leg-press-hack-slide']) });
+  Store.saveProfile();
+}
 // Nomes diferentes para o mesmo exercício compartilham o histórico de cargas.
 const KEY_ALIAS = { 'hack-slide': 'hack-squat' };
 const canon = k => KEY_ALIAS[k] || k;
@@ -679,7 +694,6 @@ function lineupOf(tid, date) {
   // troca exercícios tirados do catálogo pelo substituto, sem duplicar
   const seen = new Set(), out = [];
   for (const x of list) {
-    if (x.exId && REPLACED[x.exId]) x.exId = REPLACED[x.exId];
     if (!x.exId && x.name && canon(slug(x.name)) === 'hack-squat') { const b = BANK[tid === 'B2' ? 'B2-QUA-05' : 'D-QUA-03']; x.exId = b.id; delete x.name; delete x.key; }
     if (x.exId && seen.has(x.exId)) continue;
     if (x.exId) seen.add(x.exId);
@@ -1707,6 +1721,7 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.ad
 
 /* ---------- início ---------- */
 Store.init();
+migrateOnce();
 route();
 })();
 </script>
